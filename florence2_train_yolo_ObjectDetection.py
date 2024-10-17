@@ -1,8 +1,6 @@
 # %%
-from transformers import AutoProcessor, AutoModelForCausalLM
 from PIL import Image
-import requests
-import copy
+import pandas as pd
 import torch
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
@@ -14,6 +12,7 @@ import json
 from ultralytics import YOLO
 from sklearn.model_selection import train_test_split
 import shutil
+import glob
 
 # %%
 # Load the model
@@ -190,15 +189,13 @@ names:
         yaml_file.write(yaml_content)
     pass
 
-def yolo_trainer(base_path):
+def yolo_trainer(base_path,model_yolo):
     os.chdir(base_path)
-    model_yolo = YOLO('yolo11n.pt')  # Specify the correct YOLOv11 config file
-    results = model_yolo.train(data="coco8.yaml", epochs=100, imgsz=640)
-    return results
+      # Specify the correct YOLOv11 config file
+    model_yolo.train(data="coco8.yaml", epochs=100, imgsz=640)
+    yield training_progress()
 
-def run_annotaion_tool(data_path,task_prompt,text_input,model_id):
-    model = AutoModelForCausalLM.from_pretrained(model_id, trust_remote_code=True, torch_dtype='auto').eval().cuda()
-    processor = AutoProcessor.from_pretrained(model_id, trust_remote_code=True)
+def run_annotaion_tool(data_path,task_prompt,text_input,model,processor):
     data_stored_path = os.path.join(data_path, "images")
     # List only .jpg files in the directory
     jpg_files_list = [f for f in os.listdir(data_stored_path) if f.endswith('.jpg')]
@@ -229,17 +226,15 @@ def run_annotaion_tool(data_path,task_prompt,text_input,model_id):
             # plot_bbox(img, xyxy_annotations, labels_annotations,"Image From Yolo Label file")
             coun_executed = coun_executed+1
             yield ("Completed : {}/{}".format(coun_executed,count_execution))
-            
-# %%
-model_id = 'microsoft/Florence-2-large-ft'
-data_path = "datasets"
-base_path = os.getcwd()
-task_prompt = '<CAPTION_TO_PHRASE_GROUNDING>'
-text_input = "a license plate"
-# %%
-run_annotaion_tool(data_path,task_prompt,text_input,model_id)
-# %%
-train_val_test_split(data_path)
-create_yaml_file(data_path)
-yolo_trainer(base_path)
-# %%
+
+def get_last_created_folder(directory):
+    # Get all directories in the specified directory
+    folders = [f for f in glob.glob(directory + "/*") if os.path.isdir(f)]
+    # Find the folder with the latest creation time
+    last_created_folder = max(folders, key=os.path.getctime)
+    return last_created_folder
+
+def training_progress():
+    dir = get_last_created_folder("runs/detect")
+    dataframe = pd.read_csv("runs/detect/"+dir)
+    return dataframe.to_json()
