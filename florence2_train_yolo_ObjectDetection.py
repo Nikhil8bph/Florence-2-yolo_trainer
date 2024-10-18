@@ -1,4 +1,4 @@
-# %%
+
 from PIL import Image
 import pandas as pd
 import torch
@@ -12,9 +12,9 @@ import json
 from ultralytics import YOLO
 from sklearn.model_selection import train_test_split
 import shutil
-import glob
+from utils import *
 
-# %%
+
 # Load the model
 def run_example(task_prompt, image, model, processor ,text_input=None):
     prompt = task_prompt if text_input is None else task_prompt + text_input
@@ -227,13 +227,6 @@ def run_annotation_tool(data_path,task_prompt,text_input,model,processor):
             # plot_bbox(img, xyxy_annotations, labels_annotations,"Image From Yolo Label file")
             coun_executed = coun_executed+1
             yield ("Completed : {}/{}".format(coun_executed,count_execution))
-            
-def get_last_created_folder(directory):
-    # Get all directories in the specified directory
-    folders = [f for f in glob.glob(directory + "/*") if os.path.isdir(f)]
-    # Find the folder with the latest creation time
-    last_created_folder = max(folders, key=os.path.getctime)
-    return last_created_folder
 
 def training_progress():
     direct = os.path.join(os.path.dirname(os.path.realpath(__file__)),"runs\\detect")
@@ -243,3 +236,4 @@ def training_progress():
         return str(dataframe.to_json(index=False))
     else:
         return str({"status":"in progress"})
+

@@ -3,6 +3,7 @@ from transformers import AutoProcessor, AutoModelForCausalLM
 import torch
 import threading
 from florence2_train_yolo_ObjectDetection import run_annotation_tool, yolo_trainer, train_val_test_split, create_yaml_file,training_progress
+import utils
 from ultralytics import YOLO
 import os
 import time
@@ -19,6 +20,7 @@ app.config['UPLOAD_FOLDER'] = data_path
 
 @app.route('/upload_files', methods=['POST'])
 def upload_files():
+    current_state = utils.read_current_state()
     if 'files[]' not in request.files:
         return jsonify({"message": "No files part in the request"}), 400
 
@@ -29,7 +31,7 @@ def upload_files():
             return jsonify({"message": "No selected file"}), 400
 
         # Save the file to the specified upload folder
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
+        file_path = os.path.join(os.path.join(app.config['UPLOAD_FOLDER'],current_state), file.filename)
         file.save(file_path)
         uploaded_files.append(file.filename)
     return jsonify({"message": "Files uploaded successfully", "files": uploaded_files}), 200
@@ -38,13 +40,17 @@ def upload_files():
 def create_project():
     if request.method == 'POST':
         project_name = request.form['project_name']
-        os.makedirs(os.path.join(data_path,project_name), exist_ok=True)
-        os.makedirs(os.path.join(os.path.join(data_path,project_name),"images"), exist_ok=True)
-        base_path = os.path.join(os.path.join(data_path,project_name),"label_map.json")
-        current_project = {"current_project":base_path}
-        if os.path.exists(base_path) == False:
-            with open(base_path, 'w') as file:
-                json.dump({current_project}, file)
+        utils.create_project(data_path,project_name)
+        return "successfully created"
+    else:
+        return "Only POST method is allowed"
+    
+@app.route('/get_current_project',methods=['GET'])
+def get_current_project():
+    if request.method == 'GET':
+        return utils.read_current_state()
+    else:
+        return "Only GET method is allowed"
 
 @app.route('/start_annotation',methods=["POST"])
 def start_annotation():
