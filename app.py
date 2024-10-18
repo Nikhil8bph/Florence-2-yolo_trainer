@@ -88,7 +88,6 @@ def start_model_training():
             while thread.is_alive():
                 time.sleep(2)
                 result = training_progress()
-                print("----------------method is being called------------------------------------------------------------")
                 yield result
             time.sleep(10)
             return training_progress()

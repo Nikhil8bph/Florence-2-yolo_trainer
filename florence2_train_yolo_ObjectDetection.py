@@ -116,7 +116,8 @@ def save_yolo_annotations(data_path,image_path,bboxes,labels,img_height,img_widt
     return label_path
 
 def crud_label_map(data_path,label):
-    base_path = os.path.join(data_path,"label_map.json")
+    current_state = read_current_state()
+    base_path = os.path.join(current_state['project_path'],"label_map.json")
     if os.path.exists(base_path) == False:
         with open(base_path, 'w') as file:
             json.dump({}, file)
@@ -131,7 +132,9 @@ def crud_label_map(data_path,label):
             json.dump(labels_map, file)
         return labels_map[label]
 
-def train_val_test_split(data_dir,split_map={"train":0.7,"valid":0.2,"test":0.1}):
+def train_val_test_split(data_dir_path,split_map={"train":0.7,"valid":0.2,"test":0.1}):
+    current_project_state = read_current_state()
+    data_dir = current_project_state['project_path']
     images_dir = os.path.join(data_dir, 'images')
     labels_dir = os.path.join(data_dir, 'labels')
     train_dir = os.path.join(data_dir, 'train')
@@ -169,14 +172,15 @@ def train_val_test_split(data_dir,split_map={"train":0.7,"valid":0.2,"test":0.1}
     # shutil.rmtree(labels_dir)
 
 def create_yaml_file(base_path):
-    base_path = os.path.join(base_path,"label_map.json")
+    current_project = read_current_state()
+    base_path = os.path.join(current_project['project_path'],"label_map.json")
     with open(base_path, 'r') as file:
         labels_map = json.load(file)
     # Define the yaml content
     yaml_content = f"""
-train: train/images
-val: valid/images
-test: test/images  # Optional, only if you have a separate test dataset
+train: ../../{current_project['current_project']}/train/images
+val: ../../{current_project['current_project']}/valid/images
+test: ../../{current_project['current_project']}/test/images  # Optional, only if you have a separate test dataset
 
 nc: {len(labels_map)}  # Number of classes
 names:
@@ -185,28 +189,30 @@ names:
         yaml_content += f"  {idx}: '{label}'  # Class name for label {idx}\n"
 
     # Write to coco.yaml
-    with open("coco8.yaml", "w") as yaml_file:
+    with open(os.path.join(current_project["project_path"],"coco8.yaml"), "w") as yaml_file:
         yaml_file.write(yaml_content)
-    pass
+    
 
 def yolo_trainer(base_path,model_yolo,yolo_model_epochs):
+    current_project_state = read_current_state()
     print("os.path.realpath(__file__) : ",os.path.dirname(os.path.realpath(__file__)))
     os.chdir(os.path.dirname(os.path.realpath(__file__)))
       # Specify the correct YOLOv11 config file
-    model_yolo.train(data="coco8.yaml", epochs=yolo_model_epochs, imgsz=640)
+    model_yolo.train(data=os.path.join(current_project_state["project_path"],"coco8.yaml"),project=(current_project_state["project_path"]+"\\runs"), epochs=yolo_model_epochs, imgsz=640)
     return False
 
 def run_annotation_tool(data_path,task_prompt,text_input,model,processor):
-    data_stored_path = os.path.join(data_path, "images")
+    current_project_state = read_current_state()
+    data_stored_path = os.path.join(current_project_state['project_path'], "images")
     # List only .jpg files in the directory
     jpg_files_list = [f for f in os.listdir(data_stored_path) if f.endswith('.jpg')]
     # Count the number of .jpg files
     count_execution = len(jpg_files_list)
     print("Total .jpg files detected: {}".format(count_execution))
     coun_executed = 0
-    for path_img in os.listdir(path=os.path.join(data_path,"images")):
+    for path_img in os.listdir(data_stored_path):
         if path_img.endswith(".jpg"):
-            image_path = os.path.join((os.path.join(data_path,"images")),path_img)
+            image_path = os.path.join(data_stored_path,path_img)
             cv2_image = cv2.imread(image_path)
             # cv2_image.resize((640,640,3))
             # cv2.imwrite(image_path,cv2_image)
@@ -220,7 +226,7 @@ def run_annotation_tool(data_path,task_prompt,text_input,model,processor):
             # print("bboxes : {}\nlabel : {}".format(bboxes,labels))
             # plot_bbox(img,bboxes,labels,"Image From Florence-2")
             # print("save yolo annotations called")
-            label_path = save_yolo_annotations(data_path,image_path,bboxes,labels,img_height,img_width)
+            label_path = save_yolo_annotations(current_project_state['project_path'],image_path,bboxes,labels,img_height,img_width)
             # print("annotations returned path : {}".format(label_path))
             annotations = read_yolo_label_file(label_path)
             xyxy_annotations,labels_annotations = provide_yolo_annotations(annotations, img_height,img_width)
@@ -229,9 +235,12 @@ def run_annotation_tool(data_path,task_prompt,text_input,model,processor):
             yield ("Completed : {}/{}".format(coun_executed,count_execution))
 
 def training_progress():
-    direct = os.path.join(os.path.dirname(os.path.realpath(__file__)),"runs\\detect")
+    current_project_state = read_current_state()
+    direct = current_project_state["project_path"]+"\\runs"
     dir = os.path.join(direct,get_last_created_folder(direct))
+    print("-------------",os.path.join(dir,"results.csv"))
     if os.path.exists(os.path.join(dir,"results.csv")):
+        print("---------------------results.csv is generated")
         dataframe = pd.read_csv(os.path.join(dir,"results.csv"))
         return str(dataframe.to_json(index=False))
     else:

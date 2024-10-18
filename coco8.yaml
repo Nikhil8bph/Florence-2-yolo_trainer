@@ -1,8 +1,0 @@
-
-train: train/images
-val: valid/images
-test: test/images  # Optional, only if you have a separate test dataset
-
-nc: 1  # Number of classes
-names:
-  0: 'a license plate'  # Class name for label 0

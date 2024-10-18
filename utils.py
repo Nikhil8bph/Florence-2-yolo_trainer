@@ -4,7 +4,7 @@ import glob
 
 def create_project(data_path, project_name):
     base_path = "current_state.json"
-    current_project = {"current_project": project_name}
+    current_project = {"current_project": project_name,"data_path":data_path,"project_path":os.path.join(data_path, project_name)}
     try:
         with open(base_path, 'w') as file:
             json.dump(current_project, file)
