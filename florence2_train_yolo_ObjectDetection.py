@@ -15,6 +15,7 @@ import shutil
 from utils import *
 
 
+data_columns = ["image_height","image_width","X1","Y1","X2","Y2","X_Center","Y_Center","annotation_width","annotation_height","image_path"]
 # Load the model
 def run_example(task_prompt, image, model, processor ,text_input=None):
     prompt = task_prompt if text_input is None else task_prompt + text_input
@@ -90,8 +91,13 @@ def provide_yolo_annotations(annotations, img_height,img_width):
     return xyxy_annotations,labels_annotations
 
 def save_yolo_annotations(data_path,image_path,bboxes,labels,img_height,img_width):
+    global data_columns
     base_name = os.path.basename(image_path)
     annotations_dir = os.path.join(data_path,"labels")
+    data_csv = os.path.join(data_path,"data_annotations.csv")
+    if not os.path.exists(data_csv):
+        pd.DataFrame(columns = data_columns).to_csv(data_csv, index=False)
+    dataframe = pd.read_csv(data_csv)
     if not os.path.exists(annotations_dir):
         os.mkdir(annotations_dir)
     annotations_file_name = os.path.splitext(base_name)[0]+".txt"
@@ -113,6 +119,21 @@ def save_yolo_annotations(data_path,image_path,bboxes,labels,img_height,img_widt
             elif count>1:
                 string = "\n{} {} {} {} {}".format(crud_label_map(data_path,label), x_center,y_center,width,height)
             file.write(string)
+            df = pd.DataFrame({
+                "image_height": [img_height],
+                "image_width": [img_width],
+                "X1": [bbox[0]],
+                "Y1": [bbox[1]],
+                "X2": [bbox[2]],
+                "Y2": [bbox[3]],
+                "X_Center": [x_center],
+                "Y_Center": [y_center],
+                "annotation_width": [width],
+                "annotation_height": [height],
+                "image_path": [image_path]
+            })
+            dataframe = pd.concat([dataframe, df], ignore_index=True)
+    dataframe.to_csv(data_csv, index=False)
     return label_path
 
 def crud_label_map(data_path,label):
@@ -193,12 +214,15 @@ names:
         yaml_file.write(yaml_content)
     
 
-def yolo_trainer(base_path,model_yolo,yolo_model_epochs):
+def yolo_trainer(model_yolo,yolo_model_epochs,imagesz=640):
     current_project_state = read_current_state()
     print("os.path.realpath(__file__) : ",os.path.dirname(os.path.realpath(__file__)))
     os.chdir(os.path.dirname(os.path.realpath(__file__)))
       # Specify the correct YOLOv11 config file
-    model_yolo.train(data=os.path.join(current_project_state["project_path"],"coco8.yaml"),project=(current_project_state["project_path"]+"\\runs"), epochs=yolo_model_epochs, imgsz=640)
+    model_yolo.train(name="train",data=os.path.join(current_project_state["project_path"],"coco8.yaml"),
+                     project=(current_project_state["project_path"]+"\\runs"), epochs=yolo_model_epochs, 
+                     imgsz=imagesz,
+                     exist_ok=True)
     return False
 
 def run_annotation_tool(data_path,task_prompt,text_input,model,processor):
@@ -238,7 +262,6 @@ def training_progress():
     current_project_state = read_current_state()
     direct = current_project_state["project_path"]+"\\runs"
     dir = os.path.join(direct,get_last_created_folder(direct))
-    print("-------------",os.path.join(dir,"results.csv"))
     if os.path.exists(os.path.join(dir,"results.csv")):
         print("---------------------results.csv is generated")
         dataframe = pd.read_csv(os.path.join(dir,"results.csv"))

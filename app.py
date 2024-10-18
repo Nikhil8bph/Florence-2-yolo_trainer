@@ -48,6 +48,13 @@ def create_project():
     else:
         return "Only POST method is allowed"
     
+@app.route('/list_projects',methods=['GET'])
+def list_projects():
+    if request.method == 'GET':
+        return utils.provide_list_of_projects(data_path)
+    else:
+        return "Only POST method is allowed"
+    
 @app.route('/get_current_project',methods=['GET'])
 def get_current_project():
     if request.method == 'GET':
@@ -79,18 +86,17 @@ def start_model_training():
     if request.method == 'POST':
         yolo_model_version = request.form["yolo_model_version"]
         yolo_model_epochs = int(request.form["yolo_model_epochs"])
+        image_size = int(request.form["image_size"])
         def task1():
             model_yolo = YOLO(yolo_model_version)
             train_val_test_split(data_path)
             create_yaml_file(data_path)
-            yolo_trainer(data_path, model_yolo, yolo_model_epochs)
+            yolo_trainer(model_yolo=model_yolo, yolo_model_epochs=yolo_model_epochs,imagesz=image_size)
         def task2(thread):
             while thread.is_alive():
                 time.sleep(2)
                 result = training_progress()
                 yield result
-            time.sleep(10)
-            return training_progress()
         thread1 = threading.Thread(target=task1)
         thread1.start()
         return Response(task2(thread=thread1), mimetype='text/event-stream')

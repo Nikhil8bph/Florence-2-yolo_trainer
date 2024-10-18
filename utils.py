@@ -21,6 +21,14 @@ def read_current_state():
     except IOError as e:
         print(f"Error reading file current_state.json: {e}")
         return {}
+    
+def update_current_state(labels_map):
+    try:
+        with open("current_state.json", 'r+') as file:
+            json.dump(labels_map,file)
+    except IOError as e:
+        print(f"Error reading file current_state.json: {e}")
+        return {}
 
 def get_last_created_folder(directory):
     # Get all directories in the specified directory
@@ -28,3 +36,7 @@ def get_last_created_folder(directory):
     # Find the folder with the latest creation time
     last_created_folder = max(folders, key=os.path.getctime)
     return last_created_folder
+
+
+def provide_list_of_projects(data_path):
+    return os.listdir(data_path)
