@@ -46,32 +46,48 @@ def create_project():
             with open(base_path, 'w') as file:
                 json.dump({current_project}, file)
 
-@app.route('/start_annotation')
+@app.route('/start_annotation',methods=["POST"])
 def start_annotation():
-    def task():
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        model = AutoModelForCausalLM.from_pretrained(model_id, trust_remote_code=True, torch_dtype='auto').eval().to(device)
-        processor = AutoProcessor.from_pretrained(model_id, trust_remote_code=True)
-        for progress in run_annotation_tool(data_path, task_prompt, text_input, model, processor):
-            yield f"data: {progress}\n\n"
-    return Response(task(), mimetype='text/event-stream')
+    if request.method == 'POST':
+        task_perform = None
+        prompt = request.form["task_prompt"]
+        task_type = int(request.form["task_type"])
+        if task_type == 1:
+            task_perform = '<CAPTION_TO_PHRASE_GROUNDING>'
+        print("Task Prompt Received is : {} \nTask Type Received is : {}\nTask required to perform is : {}".format(prompt,task_type,task_perform))
+        def task(task_perform,prompt):
+            device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+            model = AutoModelForCausalLM.from_pretrained(model_id, trust_remote_code=True, torch_dtype='auto').eval().to(device)
+            processor = AutoProcessor.from_pretrained(model_id, trust_remote_code=True)
+            for progress in run_annotation_tool(data_path, task_perform, prompt, model, processor):
+                yield f"data: {progress}\n\n"
+        return Response(task(task_perform,prompt), mimetype='text/event-stream')
+    else:
+        return "Only POST method is allowed"
 
-@app.route('/start_model_training')
+@app.route('/start_model_training',methods=["POST"])
 def start_model_training():
-    def task1():
-        model_yolo = YOLO('yolo11n.pt')
-        train_val_test_split(data_path)
-        create_yaml_file(data_path)
-        yolo_trainer(data_path, model_yolo)
-    def task2(thread):
-        while thread.is_alive():
-            time.sleep(2)
-            result = training_progress()
-            yield result
-        return training_progress()
-    thread1 = threading.Thread(target=task1)
-    thread1.start()
-    return Response(task2(thread=thread1), mimetype='text/event-stream')
+    if request.method == 'POST':
+        yolo_model_version = request.form["yolo_model_version"]
+        yolo_model_epochs = int(request.form["yolo_model_epochs"])
+        def task1():
+            model_yolo = YOLO(yolo_model_version)
+            train_val_test_split(data_path)
+            create_yaml_file(data_path)
+            yolo_trainer(data_path, model_yolo, yolo_model_epochs)
+        def task2(thread):
+            while thread.is_alive():
+                time.sleep(2)
+                result = training_progress()
+                print("----------------method is being called------------------------------------------------------------")
+                yield result
+            time.sleep(10)
+            return training_progress()
+        thread1 = threading.Thread(target=task1)
+        thread1.start()
+        return Response(task2(thread=thread1), mimetype='text/event-stream')
+    else:
+        return "Only POST method is allowed"
 
 if __name__ == '__main__':
     app.run()

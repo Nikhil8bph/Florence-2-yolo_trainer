@@ -189,11 +189,11 @@ names:
         yaml_file.write(yaml_content)
     pass
 
-def yolo_trainer(base_path,model_yolo):
+def yolo_trainer(base_path,model_yolo,yolo_model_epochs):
     print("os.path.realpath(__file__) : ",os.path.dirname(os.path.realpath(__file__)))
     os.chdir(os.path.dirname(os.path.realpath(__file__)))
       # Specify the correct YOLOv11 config file
-    model_yolo.train(data="coco8.yaml", epochs=10, imgsz=640)
+    model_yolo.train(data="coco8.yaml", epochs=yolo_model_epochs, imgsz=640)
     return False
 
 def run_annotation_tool(data_path,task_prompt,text_input,model,processor):
@@ -227,7 +227,7 @@ def run_annotation_tool(data_path,task_prompt,text_input,model,processor):
             # plot_bbox(img, xyxy_annotations, labels_annotations,"Image From Yolo Label file")
             coun_executed = coun_executed+1
             yield ("Completed : {}/{}".format(coun_executed,count_execution))
-
+            
 def get_last_created_folder(directory):
     # Get all directories in the specified directory
     folders = [f for f in glob.glob(directory + "/*") if os.path.isdir(f)]
