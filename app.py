@@ -31,7 +31,10 @@ def upload_files():
             return jsonify({"message": "No selected file"}), 400
 
         # Save the file to the specified upload folder
-        file_path = os.path.join(os.path.join(app.config['UPLOAD_FOLDER'],current_state), file.filename)
+        project_path = os.path.join(app.config['UPLOAD_FOLDER'],current_state['current_project'])
+        project_path_images = os.path.join(project_path,"images")
+        os.makedirs(project_path_images, exist_ok=True)
+        file_path = os.path.join(project_path_images, file.filename)
         file.save(file_path)
         uploaded_files.append(file.filename)
     return jsonify({"message": "Files uploaded successfully", "files": uploaded_files}), 200
