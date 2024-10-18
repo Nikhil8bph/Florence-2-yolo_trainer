@@ -1,4 +1,4 @@
-from flask import Flask, Response
+from flask import Flask, Response, request, jsonify
 from transformers import AutoProcessor, AutoModelForCausalLM
 import torch
 import threading
@@ -6,6 +6,7 @@ from florence2_train_yolo_ObjectDetection import run_annotation_tool, yolo_train
 from ultralytics import YOLO
 import os
 import time
+import json
 
 app = Flask(__name__)
 
@@ -13,6 +14,37 @@ model_id = 'microsoft/Florence-2-large-ft'
 data_path = 'datasets'
 task_prompt = '<CAPTION_TO_PHRASE_GROUNDING>'
 text_input = "a license plate"
+
+app.config['UPLOAD_FOLDER'] = data_path
+
+@app.route('/upload_files', methods=['POST'])
+def upload_files():
+    if 'files[]' not in request.files:
+        return jsonify({"message": "No files part in the request"}), 400
+
+    files = request.files.getlist('files[]')
+    uploaded_files = []
+    for file in files:
+        if file.filename == '':
+            return jsonify({"message": "No selected file"}), 400
+
+        # Save the file to the specified upload folder
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
+        file.save(file_path)
+        uploaded_files.append(file.filename)
+    return jsonify({"message": "Files uploaded successfully", "files": uploaded_files}), 200
+
+@app.route('/create_new_project',methods=['POST'])
+def create_project():
+    if request.method == 'POST':
+        project_name = request.form['project_name']
+        os.makedirs(os.path.join(data_path,project_name), exist_ok=True)
+        os.makedirs(os.path.join(os.path.join(data_path,project_name),"images"), exist_ok=True)
+        base_path = os.path.join(os.path.join(data_path,project_name),"label_map.json")
+        current_project = {"current_project":base_path}
+        if os.path.exists(base_path) == False:
+            with open(base_path, 'w') as file:
+                json.dump({current_project}, file)
 
 @app.route('/start_annotation')
 def start_annotation():
@@ -36,12 +68,9 @@ def start_model_training():
             time.sleep(2)
             result = training_progress()
             yield result
-        time.sleep(10)
         return training_progress()
     thread1 = threading.Thread(target=task1)
     thread1.start()
-    # thread1.join()
-    # thread2.join()
     return Response(task2(thread=thread1), mimetype='text/event-stream')
 
 if __name__ == '__main__':

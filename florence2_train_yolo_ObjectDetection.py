@@ -193,7 +193,7 @@ def yolo_trainer(base_path,model_yolo):
     print("os.path.realpath(__file__) : ",os.path.dirname(os.path.realpath(__file__)))
     os.chdir(os.path.dirname(os.path.realpath(__file__)))
       # Specify the correct YOLOv11 config file
-    model_yolo.train(data="coco8.yaml", epochs=100, imgsz=640)
+    model_yolo.train(data="coco8.yaml", epochs=10, imgsz=640)
     return False
 
 def run_annotation_tool(data_path,task_prompt,text_input,model,processor):
@@ -237,9 +237,9 @@ def get_last_created_folder(directory):
 
 def training_progress():
     direct = os.path.join(os.path.dirname(os.path.realpath(__file__)),"runs\\detect")
-    dir = os.path.join(direct+get_last_created_folder(direct))
+    dir = os.path.join(direct,get_last_created_folder(direct))
     if os.path.exists(os.path.join(dir,"results.csv")):
         dataframe = pd.read_csv(os.path.join(dir,"results.csv"))
-        return str(dataframe.to_json())
+        return str(dataframe.to_json(index=False))
     else:
-        return str({"status":"in progress","dir":dir})
+        return str({"status":"in progress"})
